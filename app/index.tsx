@@ -1,125 +1,169 @@
-import React from "react";
-import { Button, Keyboard, StyleSheet, Text, TextInput, View } from "react-native";
-import { FlatList, GestureHandlerRootView } from "react-native-gesture-handler";
-
+import React, { useState } from "react";
+import {
+  Button,
+  Keyboard,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  FlatList,
+} from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as crypto from "expo-crypto";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
-type uuid = string;
+// Tipos
+type UUID = string;
 
-type TodoItem = { id: uuid; value: string; done: boolean };
+type TodoItem = {
+  id: UUID;
+  value: string;
+  done: boolean;
+};
 
-function ListItem({ todoItem, toggleTodo }: { todoItem: TodoItem; toggleTodo: (id: uuid) => void }) {
+type FilterOption = "all" | "done" | "pending";
 
-  const handlePress = (id: uuid) => {
-    console.log(`Todo item with id ${id} marked as complete.`);
-    toggleTodo(id);
+// Componente de item da lista
+function ListItem({
+  todo,
+  onToggle,
+}: {
+  todo: TodoItem;
+  onToggle: (id: UUID) => void;
+}) {
+  const handlePress = () => {
+    console.log(`Todo item with id ${todo.id} toggled.`);
+    onToggle(todo.id);
   };
 
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-      {!todoItem.done ? (
-        <>
-          <Text style={styles.item}>{todoItem.value}</Text>
-          <Button title="Concluir" onPress={() => { handlePress(todoItem.id) }} color="green" />
-        </>
+    <View style={styles.todoItemContainer}>
+      {todo.done ? (
+        <Text style={styles.todoTextDone}>{todo.value}</Text>
       ) : (
-        <Text style={styles.itemdone}>{todoItem.value}</Text>
+        <>
+          <Text style={styles.todoText}>{todo.value}</Text>
+          <Button title="Concluir" onPress={handlePress} color="green" />
+        </>
       )}
     </View>
   );
 }
 
-function AddTodoForm({ addTodoHandler }: { addTodoHandler: (text: string) => void }) {
-  const [text, setText] = React.useState("");
+// Formulário para adicionar item
+function AddTodoForm({ onAdd }: { onAdd: (text: string) => void }) {
+  const [text, setText] = useState("");
 
-  const handlePress = () => {
-    if (text.trim().length === 0) return;
+  const handleAdd = () => {
+    if (!text.trim()) return;
 
-    addTodoHandler(text);
+    onAdd(text);
     setText("");
     Keyboard.dismiss();
   };
 
   return (
-    <View style={{ width: "100%", marginTop: 10, paddingHorizontal: 20, alignItems: "center" }}>
+    <View style={styles.formContainer}>
       <TextInput
         value={text}
         onChangeText={setText}
         style={styles.textInput}
         placeholder="O que você precisa fazer?"
-        placeholderTextColor="#000"
-        onSubmitEditing={handlePress}
+        placeholderTextColor="#666"
+        onSubmitEditing={handleAdd}
         returnKeyType="done"
       />
     </View>
   );
 }
 
-const TodoFilter = ({filterTodo, filterTodoOptions}) => {
-  
-  const handlePress = (filterTodoOptions) => {
-    filterTodo(filterTodoOptions);
-  }
-
+// Filtro
+function TodoFilter({
+  onFilter,
+  options,
+}: {
+  onFilter: (option: FilterOption) => void;
+  options: Record<string, FilterOption>;
+}) {
   return (
-    <View className="center-content">
-      <Button id="filter-all" title="Todos os itens" onPress={() => { handlePress(filterTodoOptions.ALL)}}/>
-      <Button id="filter-done" title="Concluídos" onPress={() => { handlePress(filterTodoOptions.DONE)} }/>
-      <Button id="filter-pending" title="Pendentes" onPress={() => { handlePress(filterTodoOptions.PENDING)} }/>
+    <View style={styles.filterContainer}>
+      <Button
+        title="Todos"
+        onPress={() => onFilter(options.ALL)}
+        color="#333"
+      />
+      <Button
+        title="Concluídos"
+        onPress={() => onFilter(options.DONE)}
+        color="green"
+      />
+      <Button
+        title="Pendentes"
+        onPress={() => onFilter(options.PENDING)}
+        color="orange"
+      />
     </View>
   );
-};
+}
 
+// Tela principal
 export default function Index() {
-
-  const TodoFilterOption = {
+  const FILTER_OPTIONS: Record<string, FilterOption> = {
     ALL: "all",
     DONE: "done",
     PENDING: "pending",
   };
 
-
-  const [todos, setTodos] = React.useState<TodoItem[]>([
+  const [todos, setTodos] = useState<TodoItem[]>([
     { id: crypto.randomUUID(), value: "Sample Todo 1", done: false },
     { id: crypto.randomUUID(), value: "Sample Todo 2", done: true },
     { id: crypto.randomUUID(), value: "Sample Todo 3", done: false },
   ]);
 
-  const [filter, setFilter] = React.useState(TodoFilterOption.ALL);
-
+  const [filter, setFilter] = useState<FilterOption>(FILTER_OPTIONS.ALL);
 
   const addTodo = (text: string) => {
-    setTodos([...todos, { id: crypto.randomUUID(), value: text, done: false }]);
+    setTodos((prev) => [
+      ...prev,
+      { id: crypto.randomUUID(), value: text, done: false },
+    ]);
   };
 
-  const toggleTodo = (id: uuid) => {
-    setTodos(todos.map(todo => todo.id === id ? { ...todo, done: !todo.done } : todo));
+  const toggleTodo = (id: UUID) => {
+    setTodos((prev) =>
+      prev.map((todo) =>
+        todo.id === id ? { ...todo, done: !todo.done } : todo
+      )
+    );
   };
 
-  const filterTodo = (option: any) => {
-    setFilter(option);
-  };
+  const filterTodo = (option: FilterOption) => setFilter(option);
 
   const filteredTodos = todos.filter((todo) => {
-    if (filter === TodoFilterOption.DONE) return todo.done;
-    if (filter === TodoFilterOption.PENDING) return !todo.done;
+    if (filter === FILTER_OPTIONS.DONE) return todo.done;
+    if (filter === FILTER_OPTIONS.PENDING) return !todo.done;
     return true;
   });
 
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
+      <SafeAreaView style={styles.safeArea}>
         <GestureHandlerRootView style={styles.container}>
-          <Text style={{ fontSize: 32, fontWeight: "bold", marginTop: 20 }}>
-            TODO List
-          </Text>
-          <TodoFilter filterTodo={filterTodo} filterTodoOptions={TodoFilterOption}/>
-          <AddTodoForm addTodoHandler={addTodo} />
+          <Text style={styles.title}>TODO List</Text>
+
+          <TodoFilter onFilter={filterTodo} options={FILTER_OPTIONS} />
+
+          <AddTodoForm onAdd={addTodo} />
+
           <FlatList
             style={styles.list}
-            data={filteredTodos.sort((a, b) => a.done === b.done ? 0 : a.done ? 1 : -1)}
-            renderItem={({ item }) => <ListItem todoItem={item} toggleTodo={toggleTodo} />}
+            data={filteredTodos.sort((a, b) =>
+              a.done === b.done ? 0 : a.done ? 1 : -1
+            )}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <ListItem todo={item} onToggle={toggleTodo} />
+            )}
           />
         </GestureHandlerRootView>
       </SafeAreaView>
@@ -127,39 +171,61 @@ export default function Index() {
   );
 }
 
+// Estilos
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "white",
+  },
   container: {
     flex: 1,
-    alignContent: "center",
-    justifyContent: "center",
     alignItems: "center",
+    padding: 20,
     backgroundColor: "white",
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: "bold",
+    marginVertical: 20,
+    color: "#222",
+  },
+  formContainer: {
+    width: "100%",
+    marginTop: 10,
   },
   textInput: {
     width: "100%",
-    borderColor: "black",
+    borderColor: "#aaa",
     borderWidth: 1,
-    margin: 10,
-    padding: 10,
-    borderRadius: 50,
+    marginVertical: 10,
+    padding: 12,
+    borderRadius: 8,
+    fontSize: 16,
+    backgroundColor: "#f9f9f9",
   },
-  item: {
-    padding: 10,
-    fontSize: 18,
-    height: 44,
+  todoItemContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 8,
   },
-  itemdone: {
-    padding: 10,
+  todoText: {
     fontSize: 18,
-    height: 44,
+    color: "#000",
+  },
+  todoTextDone: {
+    fontSize: 18,
+    color: "#777",
     textDecorationLine: "line-through",
   },
   list: {
     width: "100%",
-    backgroundColor: "white",
-    padding: 10,
     marginTop: 20,
   },
+  filterContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    width: "100%",
+    marginBottom: 15,
+  },
 });
-
-
